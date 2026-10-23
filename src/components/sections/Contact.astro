@@ -1,38 +1,27 @@
 ---
 import { getLangFromUrl, useTranslations } from '../../i18n/ui';
-import Reveal from '../islands/Reveal.tsx';
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-
-const links = [
-  { label: 'Email', href: 'mailto:nikola.lelekovic.rs@gmail.com', handle: 'nikola.lelekovic.rs@gmail.com' },
-  { label: 'GitHub', href: 'https://github.com/leqora', handle: '@leqora' },
-  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/nikola-lelekovi%C4%87/', handle: 'in/nikola-leleković' },
-];
+const email = 'nikola.lelekovic.rs@gmail.com';
 ---
-<section id="contact" class="mx-auto max-w-6xl px-6 py-28 scroll-mt-20">
-  <Reveal client:visible>
-    <div class="flex items-center gap-4 mb-10">
-      <span class="section-tag">03 / {t('nav.contact')}</span>
-      <div class="h-0.5 flex-1 bg-line/30"></div>
-    </div>
+<section id="contact" class="relative scroll-mt-20 overflow-hidden">
+  <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgb(255_46_59/0.16),transparent_60%)]"></div>
+  <div class="relative mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-36">
+    <h2 class="display max-w-3xl text-[clamp(2rem,4.4vw,3.4rem)] leading-[1.02]">{t('contact.title')}</h2>
+    <p class="mt-6 max-w-md text-lg text-ash">{t('contact.lead')}</p>
 
-    <h2 class="text-5xl sm:text-7xl lg:text-8xl font-bold uppercase leading-[0.9] glitch" data-text={t('contact.title')}>
-      {t('contact.title')}
-    </h2>
-    <p class="text-muted mt-8 max-w-xl font-mono text-sm sm:text-base leading-relaxed">{t('contact.lead')}</p>
+    <a
+      href={`mailto:${email}`}
+      class="group mt-14 inline-block break-all text-[clamp(1.15rem,4.6vw,3.6rem)] font-bold tracking-tight text-bone transition-colors hover:text-signal"
+    >
+      {email}
+      <span class="mt-2 block h-px origin-left bg-line transition-colors group-hover:bg-signal"></span>
+    </a>
 
-    <ul class="mt-12 border-t-2 border-line">
-      {links.map((l) => (
-        <li>
-          <a href={l.href} target="_blank" rel="noopener noreferrer"
-             class="group flex items-center justify-between gap-4 border-b-2 border-line py-5 sm:py-6 px-2 hover:bg-accent hover:text-black transition-colors">
-            <span class="font-display text-2xl sm:text-4xl font-bold uppercase">{l.label}</span>
-            <span class="font-mono text-xs sm:text-sm text-muted group-hover:text-black hidden sm:block">{l.handle}</span>
-            <span class="font-mono text-xl group-hover:translate-x-1 transition-transform">↗</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  </Reveal>
+    <p class="mt-12 flex flex-wrap items-center gap-x-6 gap-y-2 text-ash">
+      <span>{t('contact.elsewhere')}</span>
+      <a class="link-line font-semibold text-bone" href="https://github.com/leqora" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a class="link-line font-semibold text-bone" href="https://www.linkedin.com/in/nikola-lelekovi%C4%87/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+    </p>
+  </div>
 </section>

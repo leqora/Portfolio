@@ -4,10 +4,9 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const year = new Date().getFullYear();
 ---
-<footer class="border-t-2 border-line mt-12">
-  <div class="mx-auto max-w-6xl px-6 py-8 font-mono text-xs uppercase tracking-widest text-muted flex flex-col sm:flex-row justify-between gap-3">
-    <span class="text-fg">© {year} NIKOLA LELEKOVIĆ</span>
-    <span class="flex items-center gap-2"><span class="h-2 w-2 bg-accent-2 inline-block"></span>{t('footer.rights')}</span>
-    <span>BUILT WITH ASTRO + THREE.JS</span>
+<footer class="border-t border-line">
+  <div class="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-8 text-sm text-ash sm:flex-row sm:justify-between sm:px-8">
+    <span>© {year} Nikola Leleković</span>
+    <span>{t('footer.built')}</span>
   </div>
 </footer>

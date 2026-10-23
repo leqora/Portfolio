@@ -1,13 +1,8 @@
 ---
-import '@fontsource/space-grotesk/400.css';
-import '@fontsource/space-grotesk/500.css';
-import '@fontsource/space-grotesk/700.css';
-import '@fontsource/space-mono/400.css';
-import '@fontsource/space-mono/700.css';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/600.css';
+import '@fontsource-variable/archivo/wdth.css';
+import '@fontsource-variable/jetbrains-mono';
 import '../styles/global.css';
-import type { Lang } from '../i18n/ui';
+import { useTranslations, type Lang } from '../i18n/ui';
 
 interface Props {
   title: string;
@@ -16,6 +11,7 @@ interface Props {
 }
 
 const { title, description, lang } = Astro.props;
+const t = useTranslations(lang);
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 ---
 
@@ -24,6 +20,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).toString();
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#09090b" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
     <meta name="description" content={description} />
@@ -39,9 +36,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site).toString();
   <body>
     <a
       href="#main-content"
-      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:bg-surface focus:text-fg focus:px-4 focus:py-2 focus:rounded"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-full focus:bg-signal focus:px-4 focus:py-2 focus:text-ink"
     >
-      {lang === 'sr' ? 'Preskoči na sadržaj' : 'Skip to content'}
+      {t('skip')}
     </a>
     <slot />
   </body>

@@ -1,71 +1,67 @@
 ---
 import { getLangFromUrl, useTranslations } from '../../i18n/ui';
-import HeroAnimation from '../islands/HeroAnimation.tsx';
-import Scene3D from '../islands/Scene3D.tsx';
+import MonitorScene from '../islands/MonitorScene.tsx';
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-
-const ticker = ['C#', '.NET', 'AZURE', 'ASP.NET', 'WEB API', 'BLAZOR', 'SQL SERVER', 'MONGODB', 'DOCKER', 'LOGIC APPS'];
 ---
-<section id="hero" class="relative min-h-screen flex items-center overflow-hidden">
-  <!-- WebGL scene (client-only, static fallback handled inside) -->
-  <Scene3D client:only="react" />
+<!-- Extra height gives the camera room to fly into the screen while the hero is pinned -->
+<section id="hero" class="relative motion-safe:h-[175svh]">
+  <div class="relative flex min-h-[100svh] overflow-hidden motion-safe:sticky motion-safe:top-0 motion-safe:h-[100svh]">
+  <!-- Glow shown while WebGL loads, and the whole effect when it can't run -->
+  <div
+    class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_22%,rgb(255_46_59/0.22),transparent_55%)] lg:bg-[radial-gradient(ellipse_at_72%_45%,rgb(255_46_59/0.2),transparent_50%)]"
+  ></div>
 
-  <!-- Legibility scrim: darkens behind the copy, stronger on mobile -->
-  <div class="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-r from-bg via-bg/70 to-bg/20 sm:from-bg/90 sm:via-bg/30 sm:to-transparent"></div>
-  <div class="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-40 bg-gradient-to-t from-bg to-transparent"></div>
+  <MonitorScene client:only="react" />
 
-  <!-- Corner registration marks (brutalist HUD) -->
-  <div class="pointer-events-none absolute inset-0 z-[1]">
-    <span class="absolute top-24 left-6 kicker text-muted">LAT 44.78 / LON 20.45</span>
-    <span class="absolute top-24 right-6 kicker text-muted hidden sm:block">[ SYS: ONLINE ]</span>
-    <div class="absolute top-20 left-6 h-3 w-3 border-l-2 border-t-2 border-accent"></div>
-    <div class="absolute top-20 right-6 h-3 w-3 border-r-2 border-t-2 border-accent"></div>
-  </div>
+  <!-- Keeps the copy readable where it overlaps the scene -->
+  <div data-hero-fade class="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-ink via-ink/80 to-transparent lg:hidden"></div>
+  <div data-hero-fade class="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-ink to-transparent"></div>
 
-  <div class="mx-auto max-w-6xl px-6 relative z-10 w-full">
-    <HeroAnimation
-      client:load
-      name="Nikola Leleković"
-      role={t('hero.role')}
-      tagline={t('hero.tagline')}
-      available={t('hero.available')}
-    >
-      <div class="hero-line flex flex-wrap gap-5 mt-12">
-        <a href="#projects" class="btn-brutal" data-magnetic>{t('hero.cta.projects')} →</a>
-        <a href="#contact" class="btn-brutal btn-brutal--ghost" data-magnetic>{t('hero.cta.contact')}</a>
+  <div class="relative z-10 mx-auto flex w-full max-w-6xl items-end px-5 pb-14 pt-[50svh] sm:px-8 lg:items-center lg:pb-0 lg:pt-0">
+    <div class="intro max-w-xl" data-hero-copy>
+      <p class="mb-6 inline-flex items-center gap-2.5 text-sm text-ash">
+        <span class="status-dot"></span>
+        {t('hero.status')}
+      </p>
+
+      <h1 class="display text-[clamp(2.75rem,8.4vw,6.4rem)] text-bone">
+        Nikola<br />Leleković
+      </h1>
+
+      <p class="mt-7 max-w-md text-base leading-relaxed text-ash sm:text-lg">
+        {t('hero.lead')}
+      </p>
+
+      <div class="mt-9 flex flex-wrap gap-3">
+        <a href="#projects" class="btn btn-primary">{t('hero.cta.projects')}</a>
+        <a href="mailto:nikola.lelekovic.rs@gmail.com" class="btn btn-ghost">{t('hero.cta.contact')}</a>
       </div>
-    </HeroAnimation>
-  </div>
-
-  <!-- Marquee ticker pinned to the bottom of the hero -->
-  <div class="marquee absolute bottom-0 inset-x-0 z-10 border-y-2 border-line bg-bg/80 backdrop-blur py-3">
-    <div class="marquee__track">
-      {[...ticker, ...ticker].map((w) => (
-        <span class="font-mono text-sm uppercase tracking-widest text-fg flex items-center gap-2.5">
-          <span class="text-accent">◆</span>{w}
-        </span>
-      ))}
     </div>
+  </div>
   </div>
 </section>
 
 <script>
-  // Magnetic buttons: pull toward the cursor on desktop, snap back on leave.
+  // Fade the copy out as the camera moves toward the screen
+  const section = document.getElementById('hero');
+  const copy = document.querySelector<HTMLElement>('[data-hero-copy]');
+  const scrims = document.querySelectorAll<HTMLElement>('[data-hero-fade]');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fine = window.matchMedia('(pointer: fine)').matches;
-
-  if (!reduce && fine) {
-    document.querySelectorAll<HTMLElement>('[data-magnetic]').forEach((el) => {
-      el.addEventListener('pointermove', (e) => {
-        const r = el.getBoundingClientRect();
-        const x = e.clientX - r.left - r.width / 2;
-        const y = e.clientY - r.top - r.height / 2;
-        el.style.transform = `translate(${x * 0.25}px, ${y * 0.3}px)`;
-      });
-      el.addEventListener('pointerleave', () => {
-        el.style.transform = '';
-      });
-    });
+  if (section && copy && !reduce) {
+    const update = () => {
+      const r = section.getBoundingClientRect();
+      const travel = r.height - window.innerHeight;
+      const p = travel > 0 ? Math.min(1, Math.max(0, -r.top / travel)) : 0;
+      const fade = Math.min(1, p * 2.2);
+      copy.style.opacity = String(1 - fade);
+      copy.style.transform = `translateY(${-fade * 40}px)`;
+      copy.style.pointerEvents = fade > 0.9 ? 'none' : '';
+      // Lift the readability scrims too, so the screen is clear once it fills the view
+      scrims.forEach((el) => (el.style.opacity = String(1 - Math.min(1, p * 1.6))));
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
   }
 </script>

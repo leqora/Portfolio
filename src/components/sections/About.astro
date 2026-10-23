@@ -1,72 +1,69 @@
 ---
 import { getLangFromUrl, useTranslations } from '../../i18n/ui';
-import Reveal from '../islands/Reveal.tsx';
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-
-const skills = [
-  'C#', '.NET Core', 'ASP.NET', 'Web API', 'Blazor',
-  'SQL Server', 'MongoDB', 'Docker', 'Azure', 'Logic Apps',
-];
-
-const bio = {
-  en: 'I am a software engineer focused on .NET and Azure backend systems. I build APIs, services, and cloud integrations, and I have led the migration of complex BizTalk orchestrations to Azure Logic Apps.',
-  sr: 'Software inženjer fokusiran na .NET i Azure backend sisteme. Gradim API-je, servise i cloud integracije, i vodio sam migraciju kompleksnih BizTalk orkestracija na Azure Logic Apps.',
-};
 
 const experience = [
   {
     role: 'Azure Integration Engineer',
     company: 'CHC Helicopter',
-    period: { en: 'Dec 2025 – Present', sr: 'Dec 2025 – danas' },
-    note: { en: 'Migrating BizTalk orchestrations to Azure Logic Apps (Remote).', sr: 'Migracija BizTalk orkestracija na Azure Logic Apps (Remote).' },
+    start: { en: 'Dec 2025', sr: 'Dec 2025' },
+    note: {
+      en: 'Migrating BizTalk orchestrations to Azure Logic Apps. Remote.',
+      sr: 'Migracija BizTalk orkestracija na Azure Logic Apps. Remote.',
+    },
   },
   {
     role: 'Software Engineer',
     company: 'Binary Consulting Belgrade',
-    period: { en: 'May 2024 – Present', sr: 'Maj 2024 – danas' },
-    note: { en: 'C#, ASP.NET, Web API and backend services.', sr: 'C#, ASP.NET, Web API i backend servisi.' },
+    start: { en: 'May 2024', sr: 'Maj 2024' },
+    note: {
+      en: 'Backend services and Web APIs in C# and ASP.NET.',
+      sr: 'Backend servisi i Web API-ji u C# i ASP.NET-u.',
+    },
   },
 ];
+
+const stack = [
+  { group: 'Backend', items: ['C#', '.NET', 'ASP.NET Core', 'Blazor', 'Spring Boot'] },
+  { group: lang === 'sr' ? 'Cloud i integracije' : 'Cloud and integration', items: ['Azure', 'Logic Apps', 'BizTalk', 'Docker'] },
+  { group: lang === 'sr' ? 'Baze' : 'Data', items: ['SQL Server', 'MongoDB', 'MySQL'] },
+  { group: 'Frontend', items: ['React', 'Next.js', 'TypeScript'] },
+];
 ---
-<section id="about" class="mx-auto max-w-6xl px-6 py-28 scroll-mt-20">
-  <Reveal client:visible>
-    <div class="flex items-center gap-4 mb-10">
-      <span class="section-tag">01 / {t('nav.about')}</span>
-      <div class="h-0.5 flex-1 bg-line/30"></div>
+<section id="about" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-32">
+  <div class="grid gap-14 lg:grid-cols-12 lg:gap-10">
+    <div class="lg:col-span-5">
+      <h2 class="display text-[clamp(2rem,4.4vw,3.4rem)] leading-[1.02] lg:sticky lg:top-28">
+        {t('about.title')}
+      </h2>
     </div>
 
-    <h2 class="text-4xl sm:text-6xl font-bold uppercase max-w-3xl">{t('about.title')}</h2>
-    <p class="text-muted mt-8 max-w-2xl leading-relaxed font-mono text-sm sm:text-base">{bio[lang]}</p>
+    <div class="lg:col-span-6 lg:col-start-7">
+      <p class="max-w-prose text-lg leading-relaxed text-ash">{t('about.bio')}</p>
 
-    <div class="grid lg:grid-cols-2 gap-12 mt-16">
-      <!-- Stack -->
-      <div>
-        <h3 class="kicker text-accent-2 mb-5">{t('about.skills')}</h3>
-        <ul class="flex flex-wrap gap-2.5">
-          {skills.map((s) => (
-            <li class="chip">{s}</li>
-          ))}
-        </ul>
-      </div>
+      <h3 class="mt-16 text-sm font-semibold text-bone">{t('about.experience')}</h3>
+      <ol class="relative mt-6 border-l border-line">
+        {experience.map((e) => (
+          <li class="relative pb-10 pl-8 last:pb-0">
+            <span class="absolute -left-[5px] top-2 h-[9px] w-[9px] rounded-full bg-signal shadow-[0_0_0_4px_var(--color-ink),0_0_14px_rgb(255_46_59/0.7)]"></span>
+            <p class="text-sm text-ash">{e.start[lang]} – {t('about.present')}</p>
+            <p class="mt-1 text-xl font-semibold text-bone">{e.role}</p>
+            <p class="text-bone/80">{e.company}</p>
+            <p class="mt-2 text-ash">{e.note[lang]}</p>
+          </li>
+        ))}
+      </ol>
 
-      <!-- Experience -->
-      <div>
-        <h3 class="kicker text-accent-2 mb-5">{t('about.experience')}</h3>
-        <ul class="space-y-4">
-          {experience.map((e, i) => (
-            <li class="brutal-card p-5">
-              <div class="flex items-baseline justify-between gap-3 flex-wrap">
-                <p class="font-display font-bold text-lg">{e.role}</p>
-                <span class="font-mono text-xs text-accent">0{i + 1}</span>
-              </div>
-              <p class="font-mono text-sm text-accent-3 mt-1">{e.company}</p>
-              <p class="font-mono text-xs text-muted mt-2">{e.period[lang]}</p>
-              <p class="text-sm text-muted mt-2 leading-relaxed">{e.note[lang]}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <h3 class="mt-16 text-sm font-semibold text-bone">{t('about.skills')}</h3>
+      <dl class="mt-6 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+        {stack.map((s) => (
+          <div class="border-t border-line pt-4">
+            <dt class="text-sm text-ash">{s.group}</dt>
+            <dd class="mt-1.5 text-bone">{s.items.join(', ')}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
-  </Reveal>
+  </div>
 </section>

@@ -1,224 +1,129 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── Neo-brutalist palette ───────────────────────────── */
-  --color-bg: #0a0a0a;
-  --color-surface: #121212;
-  --color-panel: #161616;
-  --color-fg: #f5f5ef;
-  --color-muted: #8a8a82;
-  --color-line: #ffffff;
+  /* Palette: black + signal red */
+  --color-ink: #09090b;     /* page background */
+  --color-carbon: #131316;  /* raised surfaces */
+  --color-line: #24242a;    /* borders and rules */
+  --color-bone: #f2f0ee;    /* primary text */
+  --color-ash: #8e8e96;     /* secondary text */
+  --color-signal: #ff2e3b;  /* the one accent */
+  --color-ember: #7a0f17;   /* deep red for glows */
 
-  /* Electric accents */
-  --color-accent: #ff3d00;   /* blaze orange-red */
-  --color-accent-2: #d6ff3d; /* acid lime */
-  --color-accent-3: #3da5ff; /* electric blue */
-  --color-accent-4: #ff2d9b; /* hot magenta */
-
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Space Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 :root {
   color-scheme: dark;
-  --grid: rgba(255, 255, 255, 0.04);
-}
-
-* {
-  border-radius: 0; /* brutalism: no soft corners */
 }
 
 html {
   scroll-behavior: smooth;
+  background: var(--color-ink);
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-  font-family: var(--font-body);
+  background: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  /* faint engineering grid behind everything */
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 48px 48px;
+  text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3 {
-  font-family: var(--font-display);
-  letter-spacing: -0.02em;
+/* Expanded Archivo for headlines — the type does the heavy lifting */
+.display {
+  font-family: var(--font-sans);
+  font-stretch: 125%;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
 }
 
 ::selection {
-  background: var(--color-accent);
-  color: #000;
+  background: var(--color-signal);
+  color: var(--color-ink);
 }
 
-/* ── Brutalist primitives ──────────────────────────────── */
-.brutal-border {
-  border: 2px solid var(--color-line);
-}
-.brutal-shadow {
-  box-shadow: 6px 6px 0 0 var(--color-accent);
-}
-.brutal-shadow-lime {
-  box-shadow: 6px 6px 0 0 var(--color-accent-2);
-}
-.brutal-shadow-blue {
-  box-shadow: 6px 6px 0 0 var(--color-accent-3);
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 3px;
 }
 
-/* Mono kicker label */
-.kicker {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  font-size: 0.72rem;
+/* Links that underline from left to right on hover */
+.link-line {
+  background-image: linear-gradient(var(--color-signal), var(--color-signal));
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.3s ease, color 0.2s ease;
+}
+.link-line:hover,
+.link-line:focus-visible {
+  background-size: 100% 1px;
+  color: var(--color-bone);
 }
 
-/* ── Brutalist button (hard shadow that collapses on press) ── */
-.btn-brutal {
-  position: relative;
+/* Primary button */
+.btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  border: 2px solid var(--color-line);
-  background: var(--color-fg);
-  color: #000;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.85rem 1.5rem;
-  box-shadow: 6px 6px 0 0 var(--color-accent);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
-  will-change: transform;
+  gap: 0.6rem;
+  padding: 0.85rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.25s ease, border-color 0.2s ease;
 }
-.btn-brutal:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 9px 9px 0 0 var(--color-accent);
+.btn-primary {
+  background: var(--color-signal);
+  color: var(--color-ink);
 }
-.btn-brutal:active {
-  transform: translate(6px, 6px);
-  box-shadow: 0 0 0 0 var(--color-accent);
+.btn-primary:hover {
+  box-shadow: 0 0 0 6px rgb(255 46 59 / 0.18), 0 10px 40px -8px rgb(255 46 59 / 0.6);
 }
-.btn-brutal--ghost {
-  background: transparent;
-  color: var(--color-fg);
-  box-shadow: 6px 6px 0 0 var(--color-accent-3);
+.btn-ghost {
+  border: 1px solid var(--color-line);
+  color: var(--color-bone);
 }
-.btn-brutal--ghost:hover {
-  background: var(--color-accent-3);
-  color: #000;
-  box-shadow: 9px 9px 0 0 var(--color-accent-3);
+.btn-ghost:hover {
+  border-color: var(--color-ash);
 }
 
-/* ── Card with hard-shadow lift ────────────────────────── */
-.brutal-card {
-  border: 2px solid var(--color-line);
-  background: var(--color-panel);
-  box-shadow: 6px 6px 0 0 rgba(255, 255, 255, 0.12);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-  transform-style: preserve-3d;
-  will-change: transform;
+/* Hero intro: one orchestrated entrance, then nothing else moves on its own */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
 }
-.brutal-card:hover {
-  border-color: var(--color-accent);
-  box-shadow: 10px 10px 0 0 var(--color-accent);
-}
-
-/* Tag chip */
-.chip {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border: 2px solid var(--color-line);
-  padding: 0.25rem 0.6rem;
-  background: var(--color-bg);
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.chip:hover {
-  background: var(--color-accent-2);
-  color: #000;
-}
-
-/* ── Glitch text (hover) ───────────────────────────────── */
-.glitch {
-  position: relative;
-  display: inline-block;
-}
-.glitch::before,
-.glitch::after {
-  content: attr(data-text);
-  position: absolute;
-  inset: 0;
+.intro > * {
   opacity: 0;
-  pointer-events: none;
+  animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.1, 1) forwards;
 }
-.glitch:hover::before {
-  opacity: 1;
-  color: var(--color-accent);
-  animation: glitch-x 0.4s steps(2) infinite;
-  clip-path: inset(0 0 55% 0);
+.intro > *:nth-child(1) { animation-delay: 0.15s; }
+.intro > *:nth-child(2) { animation-delay: 0.25s; }
+.intro > *:nth-child(3) { animation-delay: 0.38s; }
+.intro > *:nth-child(4) { animation-delay: 0.5s; }
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 46 59 / 0.55); }
+  50%      { box-shadow: 0 0 0 6px rgb(255 46 59 / 0); }
 }
-.glitch:hover::after {
-  opacity: 1;
-  color: var(--color-accent-3);
-  animation: glitch-x 0.4s steps(2) infinite reverse;
-  clip-path: inset(55% 0 0 0);
-}
-@keyframes glitch-x {
-  0%   { transform: translate(0); }
-  25%  { transform: translate(-3px, 1px); }
-  50%  { transform: translate(3px, -1px); }
-  75%  { transform: translate(-2px, -1px); }
-  100% { transform: translate(0); }
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-signal);
+  animation: pulse-dot 2.4s ease-in-out infinite;
 }
 
-/* ── Marquee ticker ────────────────────────────────────── */
-.marquee {
-  overflow: hidden;
-  white-space: nowrap;
-}
-.marquee__track {
-  display: inline-flex;
-  gap: 2.5rem;
-  padding-right: 2.5rem;
-  animation: marquee 22s linear infinite;
-}
-.marquee:hover .marquee__track {
-  animation-play-state: paused;
-}
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
-/* ── Section index label ───────────────────────────────── */
-.section-tag {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-accent);
-  border: 2px solid var(--color-accent);
-  padding: 0.2rem 0.55rem;
-  display: inline-block;
-}
-
-/* ── Reveal helper (used by GSAP-free fallback) ────────── */
-.reveal-init { opacity: 0; transform: translateY(40px); }
-
-/* ── Accessibility: respect reduced motion ─────────────── */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
   }
-  .marquee__track { animation: none !important; }
-  .reveal-init { opacity: 1; transform: none; }
+  .intro > * { opacity: 1; }
 }

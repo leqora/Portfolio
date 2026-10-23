@@ -1,12 +1,25 @@
 ---
 import { getLangFromUrl, type Lang } from '../../i18n/ui';
 const current: Lang = getLangFromUrl(Astro.url);
-// EN lives at '/', SR at '/sr/'
-const enHref = '/';
-const srHref = '/sr/';
+const options: { lang: Lang; href: string; label: string; name: string }[] = [
+  { lang: 'en', href: '/', label: 'EN', name: 'English' },
+  { lang: 'sr', href: '/sr/', label: 'SR', name: 'Srpski' },
+];
 ---
-<div class="flex gap-2 text-sm">
-  <a href={enHref} class:list={["px-2 py-1 rounded", current === 'en' ? 'text-accent-2 font-semibold' : 'text-muted hover:text-fg']}>EN</a>
-  <span class="text-muted">/</span>
-  <a href={srHref} class:list={["px-2 py-1 rounded", current === 'sr' ? 'text-accent-2 font-semibold' : 'text-muted hover:text-fg']}>SR</a>
+<div class="flex rounded-full border border-line p-0.5 text-xs font-semibold">
+  {options.map((o) => (
+    <a
+      href={o.href}
+      hreflang={o.lang}
+      lang={o.lang}
+      aria-label={o.name}
+      aria-current={current === o.lang ? 'page' : undefined}
+      class:list={[
+        'rounded-full px-2.5 py-1 transition-colors',
+        current === o.lang ? 'bg-bone text-ink' : 'text-ash hover:text-bone',
+      ]}
+    >
+      {o.label}
+    </a>
+  ))}
 </div>
