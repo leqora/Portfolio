@@ -117,6 +117,9 @@ function tokenize(line: string, lang: Snippet['lang']): Tok[] {
 export interface PreparedSnippet {
   snippet: Snippet;
   lines: Tok[][];
+  /** character offset where each line starts (newlines count as one character) */
+  starts: number[];
+  lengths: number[];
   /** total characters including one per newline */
   length: number;
 }
@@ -124,33 +127,103 @@ export interface PreparedSnippet {
 export function prepare(snippet: Snippet): PreparedSnippet {
   const raw = snippet.code.split('\n');
   const lines = raw.map((l) => tokenize(l, snippet.lang));
-  const length = raw.reduce((n, l) => n + l.length + 1, 0);
-  return { snippet, lines, length };
+  const lengths = raw.map((l) => l.length);
+  const starts: number[] = [];
+  let n = 0;
+  for (const len of lengths) { starts.push(n); n += len + 1; }
+  return { snippet, lines, starts, lengths, length: n };
 }
 
 export const SCREEN_W = 1536;
 export const SCREEN_H = 968;
 
 const TAB_H = 66;
-const STATUS_H = 46;
+export const STATUS_H = 46;
 const FONT_SIZE = 29;
-const LINE_H = 47;
+export const LINE_H = 47;
+const CODE_TOP = TAB_H + 17;
 const GUTTER_W = 92;
 const PAD_X = 28;
 
 const MONO = '"JetBrains Mono Variable", ui-monospace, Menlo, monospace';
 
-/**
- * Render the editor with the first `visible` characters of the snippet typed.
- * Returns nothing; the caller flags the texture for upload.
- */
-export function drawScreen(
+/** Top edge (canvas pixels) of the band a code line occupies */
+export const lineTop = (i: number) => CODE_TOP + i * LINE_H;
+export const STATUS_TOP = SCREEN_H - STATUS_H;
+
+export function cursorAt(prep: PreparedSnippet, visible: number) {
+  for (let i = prep.lines.length - 1; i >= 0; i--) {
+    if (visible >= prep.starts[i]) {
+      return { line: i, col: Math.min(prep.lengths[i], visible - prep.starts[i]) };
+    }
+  }
+  return { line: 0, col: 0 };
+}
+
+/** Draw one code line into `ctx` with its band's top edge at `y` */
+export function drawLine(
   ctx: CanvasRenderingContext2D,
   prep: PreparedSnippet,
+  i: number,
   visible: number,
   cursorOn: boolean,
+  y = lineTop(i),
 ) {
-  const { snippet, lines } = prep;
+  const cur = cursorAt(prep, visible);
+  const isCur = i === cur.line;
+  ctx.fillStyle = isCur ? '#141418' : C.bg;
+  ctx.fillRect(0, y, SCREEN_W, LINE_H);
+  if (i > cur.line) return;
+
+  const base = y + 9 + FONT_SIZE;
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `400 ${FONT_SIZE - 3}px ${MONO}`;
+  ctx.fillStyle = isCur ? C.text : C.gutter;
+  ctx.textAlign = 'right';
+  ctx.fillText(String(i + 1), GUTTER_W - 18, base);
+  ctx.textAlign = 'left';
+
+  let budget = Math.max(0, Math.min(prep.lengths[i], visible - prep.starts[i]));
+  let x = GUTTER_W + PAD_X;
+  for (const tok of prep.lines[i]) {
+    if (budget <= 0) break;
+    const part = tok.t.slice(0, budget);
+    budget -= part.length;
+    ctx.font = `${tok.italic ? 'italic ' : ''}${tok.c === C.keyword ? 600 : 400} ${FONT_SIZE}px ${MONO}`;
+    ctx.fillStyle = tok.c;
+    ctx.fillText(part, x, base);
+    x += ctx.measureText(part).width;
+  }
+  if (isCur && cursorOn) {
+    ctx.fillStyle = C.signal;
+    ctx.fillRect(x + 2, base - FONT_SIZE + 2, 3, FONT_SIZE + 6);
+  }
+}
+
+/** Draw the status bar into `ctx` with its top edge at `y` */
+export function drawStatus(ctx: CanvasRenderingContext2D, prep: PreparedSnippet, visible: number, y = STATUS_TOP) {
+  const cur = cursorAt(prep, visible);
+  const mid = y + STATUS_H / 2;
+  ctx.fillStyle = C.chrome;
+  ctx.fillRect(0, y, SCREEN_W, STATUS_H);
+  ctx.fillStyle = C.signal;
+  ctx.fillRect(0, y, 150, STATUS_H);
+  ctx.font = `600 21px ${MONO}`;
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = C.bg;
+  ctx.fillText('main', 46, mid + 1);
+  ctx.beginPath();
+  ctx.arc(27, mid, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = C.punct;
+  ctx.fillText('0 errors · build passing', 180, mid + 1);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${prep.snippet.lang}   UTF-8   Ln ${cur.line + 1}, Col ${cur.col + 1}`, SCREEN_W - 28, mid + 1);
+  ctx.textAlign = 'left';
+}
+
+/** Draw the whole editor. Used on start and when the file changes. */
+export function drawScreen(ctx: CanvasRenderingContext2D, prep: PreparedSnippet, visible: number, cursorOn: boolean) {
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
 
@@ -161,9 +234,8 @@ export function drawScreen(
   ctx.textBaseline = 'middle';
   let tx = 0;
   for (const s of SNIPPETS) {
-    const label = s.file;
-    const w = ctx.measureText(label).width + 64;
-    const active = s.file === snippet.file;
+    const w = ctx.measureText(s.file).width + 64;
+    const active = s.file === prep.snippet.file;
     if (active) {
       ctx.fillStyle = C.bg;
       ctx.fillRect(tx, 0, w, TAB_H);
@@ -171,82 +243,12 @@ export function drawScreen(
       ctx.fillRect(tx, 0, w, 4);
     }
     ctx.fillStyle = active ? C.key : C.gutter;
-    ctx.fillText(label, tx + 32, TAB_H / 2 + 2);
+    ctx.fillText(s.file, tx + 32, TAB_H / 2 + 2);
     tx += w;
   }
   ctx.fillStyle = C.line;
   ctx.fillRect(0, TAB_H - 1, SCREEN_W, 1);
 
-  // Work out where the cursor is
-  let remaining = visible;
-  let curLine = 0;
-  let curCol = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const len = lines[i].reduce((n, t) => n + t.t.length, 0);
-    if (remaining <= len) { curLine = i; curCol = remaining; break; }
-    remaining -= len + 1;
-    curLine = i + 1;
-    curCol = 0;
-  }
-  curLine = Math.min(curLine, lines.length - 1);
-
-  // Code
-  const top = TAB_H + 26;
-  ctx.textBaseline = 'alphabetic';
-  let budget = visible;
-  for (let i = 0; i < lines.length; i++) {
-    const y = top + i * LINE_H + FONT_SIZE;
-    if (i === curLine) {
-      ctx.fillStyle = '#141418';
-      ctx.fillRect(0, y - FONT_SIZE - 9, SCREEN_W, LINE_H);
-    }
-    ctx.font = `400 ${FONT_SIZE - 3}px ${MONO}`;
-    ctx.fillStyle = i === curLine ? C.text : C.gutter;
-    ctx.textAlign = 'right';
-    ctx.fillText(String(i + 1), GUTTER_W - 18, y);
-    ctx.textAlign = 'left';
-
-    let x = GUTTER_W + PAD_X;
-    for (const tok of lines[i]) {
-      if (budget <= 0) break;
-      const part = tok.t.slice(0, budget);
-      budget -= part.length;
-      ctx.font = `${tok.italic ? 'italic ' : ''}${tok.c === C.keyword ? 600 : 400} ${FONT_SIZE}px ${MONO}`;
-      ctx.fillStyle = tok.c;
-      ctx.fillText(part, x, y);
-      x += ctx.measureText(part).width;
-    }
-    if (i === curLine && cursorOn) {
-      ctx.fillStyle = C.signal;
-      ctx.fillRect(x + 2, y - FONT_SIZE + 2, 3, FONT_SIZE + 6);
-    }
-    budget -= 1; // newline
-    if (budget < 0 && i >= curLine) break;
-  }
-
-  // Status bar
-  const sy = SCREEN_H - STATUS_H;
-  ctx.fillStyle = C.chrome;
-  ctx.fillRect(0, sy, SCREEN_W, STATUS_H);
-  ctx.fillStyle = C.signal;
-  ctx.fillRect(0, sy, 150, STATUS_H);
-  ctx.font = `600 21px ${MONO}`;
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = C.bg;
-  ctx.fillText('main', 46, sy + STATUS_H / 2 + 1);
-  ctx.beginPath();
-  ctx.arc(27, sy + STATUS_H / 2, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = C.punct;
-  ctx.fillText('0 errors · build passing', 180, sy + STATUS_H / 2 + 1);
-  ctx.textAlign = 'right';
-  ctx.fillText(`${snippet.lang}   UTF-8   Ln ${curLine + 1}, Col ${curCol + 1}`, SCREEN_W - 28, sy + STATUS_H / 2 + 1);
-  ctx.textAlign = 'left';
-
-  // Soft vignette so the panel reads as a lit screen, not a flat image
-  const g = ctx.createRadialGradient(SCREEN_W / 2, SCREEN_H / 2, SCREEN_H * 0.35, SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.72);
-  g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,0,0,0.45)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+  for (let i = 0; i < prep.lines.length; i++) drawLine(ctx, prep, i, visible, cursorOn);
+  drawStatus(ctx, prep, visible);
 }

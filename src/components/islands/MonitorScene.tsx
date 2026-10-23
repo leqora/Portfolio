@@ -3,7 +3,10 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox, ContactShadows } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
-import { SNIPPETS, SCREEN_W, SCREEN_H, prepare, drawScreen } from './codeScreen';
+import {
+  SNIPPETS, SCREEN_W, SCREEN_H, LINE_H, STATUS_H, STATUS_TOP,
+  prepare, drawScreen, drawLine, drawStatus, cursorAt, lineTop,
+} from './codeScreen';
 
 /**
  * Hero scene: a monitor typing real-looking integration code.
@@ -20,32 +23,65 @@ const CAM_Z = 9;
 
 const TYPE_SPEED = 46; // characters per second
 const HOLD_SECONDS = 2.8;
+const SCREEN_FPS = 30; // screen refresh cap while typing
 
+function makeStrip(height: number) {
+  const c = document.createElement('canvas');
+  c.width = SCREEN_W;
+  c.height = height;
+  // CPU-backed so each upload is a plain memory copy, with no GPU readback of the 2D canvas.
+  // The texture is never used by a material, so copyTextureToTexture uploads straight from it.
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  return { ctx, tex: new THREE.Texture(c) };
+}
+
+/**
+ * The screen texture is drawn in full only when the file changes. While typing,
+ * just the edited line and the status bar are re-uploaded as small strips —
+ * re-sending the whole 1536×968 texture every frame was what dropped frames.
+ */
 function useCodeTexture(animate: boolean) {
+  const gl = useThree((s) => s.gl);
   const prepared = useMemo(() => SNIPPETS.map(prepare), []);
-  const { canvas, ctx, texture } = useMemo(() => {
+  const { ctx, texture, line, status } = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = SCREEN_W;
     canvas.height = SCREEN_H;
-    const ctx = canvas.getContext('2d')!;
+    // CPU-backed like the strips: a GPU canvas needs a slow readback before every upload
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 8;
-    return { canvas, ctx, texture };
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    return { ctx, texture, line: makeStrip(LINE_H), status: makeStrip(STATUS_H) };
   }, []);
+  const pos = useMemo(() => new THREE.Vector2(), []);
 
-  const state = useRef({ index: 0, typed: 0, hold: 0, cursor: true, blink: 0, lastDrawn: -1 });
+  const state = useRef({ index: 0, typed: 0, hold: 0, cursor: true, blink: 0, sinceDraw: 0, key: -1, drawnIndex: -1, drawnLine: 0 });
+
+  const drawFull = (index: number, visible: number) => {
+    const prep = prepared[index];
+    drawScreen(ctx, prep, visible, true);
+    texture.needsUpdate = true;
+    gl.initTexture(texture); // upload now so partial copies have a target
+    const s = state.current;
+    s.drawnIndex = index;
+    s.drawnLine = cursorAt(prep, visible).line;
+  };
+
+  // Texture rows start at the bottom because canvas textures are flipped on upload
+  const blit = (src: THREE.Texture, top: number, height: number) => {
+    pos.set(0, SCREEN_H - top - height);
+    gl.copyTextureToTexture(src, texture, null, pos);
+  };
 
   // Redraw once the mono font is ready, otherwise the first frames use a fallback face
   useEffect(() => {
-    const first = prepared[0];
-    const draw = () => {
-      drawScreen(ctx, first, animate ? 0 : first.length, true);
-      texture.needsUpdate = true;
-    };
+    const draw = () => drawFull(0, animate ? 0 : prepared[0].length);
     draw();
     document.fonts?.load('400 29px "JetBrains Mono Variable"').then(draw).catch(() => {});
-  }, [ctx, texture, prepared, animate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animate]);
 
   useFrame((_, dt) => {
     if (!animate) return;
@@ -74,15 +110,46 @@ function useCodeTexture(animate: boolean) {
       }
     }
 
-    const key = Math.floor(s.typed) * 2 + (s.cursor ? 1 : 0) + s.index * 100000;
-    if (key !== s.lastDrawn) {
-      s.lastDrawn = key;
-      drawScreen(ctx, prepared[s.index], Math.floor(s.typed), s.cursor);
-      texture.needsUpdate = true;
+    s.sinceDraw += step;
+    const visible = Math.floor(s.typed);
+    const key = visible * 2 + (s.cursor ? 1 : 0) + s.index * 100000;
+    if (key === s.key || s.sinceDraw < 1 / SCREEN_FPS) return;
+    s.key = key;
+    s.sinceDraw = 0;
+
+    if (s.index !== s.drawnIndex) {
+      drawFull(s.index, visible);
+      return;
     }
+    const cur = cursorAt(prep, visible).line;
+    const from = Math.min(cur, s.drawnLine);
+    const to = Math.max(cur, s.drawnLine);
+    for (let i = from; i <= to; i++) {
+      drawLine(line.ctx, prep, i, visible, s.cursor, 0);
+      blit(line.tex, lineTop(i), LINE_H);
+    }
+    drawStatus(status.ctx, prep, visible, 0);
+    blit(status.tex, STATUS_TOP, STATUS_H);
+    s.drawnLine = cur;
   });
 
-  return { texture, canvas };
+  return texture;
+}
+
+/** Darkens the screen edges so it reads as a lit panel rather than a flat image */
+function useVignetteTexture() {
+  return useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 160;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(128, 80, 50, 128, 80, 190);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 256, 160);
+    return new THREE.CanvasTexture(c);
+  }, []);
 }
 
 /** Radial red glow used as the light spill on the wall behind the monitor */
@@ -107,7 +174,8 @@ const shell = new THREE.MeshStandardMaterial({ color: '#141417', metalness: 0.75
 const shellDark = new THREE.MeshStandardMaterial({ color: '#0d0d0f', metalness: 0.6, roughness: 0.45 });
 
 function Monitor({ animate }: { animate: boolean }) {
-  const { texture } = useCodeTexture(animate);
+  const texture = useCodeTexture(animate);
+  const vignette = useVignetteTexture();
   const screenMat = useRef<THREE.MeshBasicMaterial>(null);
   const power = useRef(animate ? 0 : 1);
 
@@ -130,6 +198,10 @@ function Monitor({ animate }: { animate: boolean }) {
       <mesh position={[0, 0.04, 0.0615]}>
         <planeGeometry args={[SCREEN_PLANE_W, SCREEN_PLANE_H]} />
         <meshBasicMaterial ref={screenMat} map={texture} toneMapped={false} color={animate ? '#000' : '#fff'} />
+      </mesh>
+      <mesh position={[0, 0.04, 0.062]}>
+        <planeGeometry args={[SCREEN_PLANE_W, SCREEN_PLANE_H]} />
+        <meshBasicMaterial map={vignette} transparent depthWrite={false} toneMapped={false} />
       </mesh>
       {/* Power light */}
       <mesh position={[1.45, -1.09, 0.062]}>
@@ -159,6 +231,22 @@ function Rig({ animate }: { animate: boolean }) {
     [portrait, visibleH, visibleW],
   );
 
+  // Hero position is measured on resize only, so the frame loop never forces layout
+  const heroTop = useRef(0);
+  const heroTravel = useRef(0);
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    const section = gl.domElement.closest('section');
+    if (!section) return;
+    const measure = () => {
+      heroTop.current = section.getBoundingClientRect().top + window.scrollY;
+      heroTravel.current = section.offsetHeight - window.innerHeight;
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [gl, size.width, size.height]);
+
   const tmp = useMemo(() => new THREE.Vector3(), []);
   const look = useMemo(() => new THREE.Vector3(), []);
 
@@ -168,13 +256,8 @@ function Rig({ animate }: { animate: boolean }) {
     const t = state.clock.elapsedTime;
 
     // Scroll progress through the pinned hero, eased
-    let raw = 0;
-    const section = state.gl.domElement.closest('section');
-    if (animate && section) {
-      const r = section.getBoundingClientRect();
-      const travel = r.height - window.innerHeight;
-      raw = travel > 0 ? Math.min(1, Math.max(0, -r.top / travel)) : 0;
-    }
+    const travel = heroTravel.current;
+    const raw = animate && travel > 0 ? Math.min(1, Math.max(0, (window.scrollY - heroTop.current) / travel)) : 0;
     const p = raw * raw * (3 - 2 * raw);
 
     // Pointer follow fades out as the camera flies in
@@ -209,7 +292,7 @@ function Rig({ animate }: { animate: boolean }) {
           <planeGeometry />
           <meshBasicMaterial map={glow} transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={0.34} toneMapped={false} />
         </mesh>
-        <ContactShadows position={[0, -1.98, 0]} opacity={0.8} scale={7} blur={2.6} far={2.5} color="#000" />
+        <ContactShadows frames={1} position={[0, -1.98, 0]} opacity={0.8} scale={7} blur={2.6} far={2.5} color="#000" />
       </group>
       {/* Floor catches the red light */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, base.y - 1.98 * scale - 0.005, 0]}>
@@ -250,8 +333,8 @@ export default function MonitorScene() {
       <Canvas
         frameloop={!inView ? 'never' : animate ? 'always' : 'demand'}
         camera={{ position: [0, 0, CAM_Z], fov: FOV }}
-        dpr={mobile ? [1, 1.5] : [1, 2]}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        dpr={mobile ? [1, 1.5] : [1, 1.5]}
+        gl={{ antialias: mobile, alpha: true, powerPreference: 'high-performance' }}
         style={{ pointerEvents: 'none' }}
         // The canvas ignores clicks; pointer position is read from the whole page instead
         eventSource={document.documentElement}
@@ -264,8 +347,9 @@ export default function MonitorScene() {
         <ambientLight intensity={0.12} />
         <Rig animate={animate} />
         {!mobile && (
-          <EffectComposer>
-            <Bloom intensity={0.55} luminanceThreshold={0.55} luminanceSmoothing={0.3} mipmapBlur />
+          // Bloom at half resolution with light MSAA: the glow is soft, so full-res buys nothing
+          <EffectComposer multisampling={2} resolutionScale={0.5}>
+            <Bloom intensity={0.55} luminanceThreshold={0.55} luminanceSmoothing={0.3} mipmapBlur resolutionScale={0.5} />
           </EffectComposer>
         )}
       </Canvas>

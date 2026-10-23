@@ -26,10 +26,15 @@ const t = useTranslations(lang);
   const header = document.querySelector<HTMLElement>('[data-header]');
   const update = () => {
     const scrolled = window.scrollY > 24;
-    header?.classList.toggle('bg-ink/80', scrolled);
-    header?.classList.toggle('backdrop-blur-md', scrolled);
+    // Solid tint instead of backdrop blur: blurring a live WebGL canvas costs a full extra pass per frame
+    header?.classList.toggle('bg-ink/92', scrolled);
     header?.classList.toggle('border-line', scrolled);
   };
-  update();
-  window.addEventListener('scroll', update, { passive: true });
+  let last: boolean | null = null;
+  const onScroll = () => {
+    const scrolled = window.scrollY > 24;
+    if (scrolled !== last) { last = scrolled; update(); }
+  };
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
 </script>
